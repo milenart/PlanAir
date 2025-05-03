@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "lat": 52.2297,
+    "lon": 21.0122,
+    "title": "Bieg Powstania Warszawskiego",
+    "category": "SPORT",
+    "description": "Coroczny bieg uliczny upamiętniający wydarzenia z 1944 roku."
+  },
+  {
+    "id": 2,
+    "lat": 52.2400,
+    "lon": 21.0180,
+    "title": "Koncert Chopinowski w Łazienkach",
+    "category": "KULTURA",
+    "description": "Bezpłatne koncerty przy pomniku Chopina."
+  },
+  {
+    "id": 3,
+    "lat": 52.2331,
+    "lon": 21.0122,
+    "title": "Warsztaty ekologiczne dla dzieci",
+    "category": "EDUKACJA",
+    "description": "Zajęcia uczące o recyklingu i ochronie środowiska."
+  },
+  {
+    "id": 4,
+    "lat": 52.2567,
+    "lon": 20.9987,
+    "title": "Sprzątanie Lasu Bielańskiego",
+    "category": "AKTYWNOSC_SPOLECZNA",
+    "description": "Inicjatywa mieszkańców na rzecz środowiska."
+  },
+  {
+    "id": 5,
+    "lat": 52.2290,
+    "lon": 21.0150,
+    "title": "Targi Książki na Placu Defilad",
+    "category": "KULTURA",
+    "description": "Spotkania z autorami, książki i stoiska."
+  },
+  {
+    "id": 6,
+    "lat": 52.2328,
+    "lon": 21.0060,
+    "title": "Pokaz jogi na świeżym powietrzu",
+    "category": "SPORT",
+    "description": "Zajęcia otwarte dla wszystkich chętnych."
+  },
+  {
+    "id": 7,
+    "lat": 52.2460,
+    "lon": 21.0170,
+    "title": "Piknik rodzinny na Polu Mokotowskim",
+    "category": "OTHER",
+    "description": "Gry, zabawy, jedzenie – dla całych rodzin."
+  },
+  {
+    "id": 8,
+    "lat": 52.2200,
+    "lon": 21.0200,
+    "title": "Debata młodzieżowa o klimacie",
+    "category": "EDUKACJA",
+    "description": "Dyskusja otwarta z udziałem ekspertów."
+  },
+  {
+    "id": 9,
+    "lat": 52.2300,
+    "lon": 21.0300,
+    "title": "Spacer po Pradze z przewodnikiem",
+    "category": "KULTURA",
+    "description": "Poznaj historię warszawskiej Pragi."
+  },
+  {
+    "id": 10,
+    "lat": 52.2150,
+    "lon": 21.0050,
+    "title": "Gra terenowa w Parku Skaryszewskim",
+    "category": "SPORT",
+    "description": "Rodzinna gra z mapą i zadaniami."
+  },
+  {
+    "id": 11,
+    "lat": 52.2345,
+    "lon": 21.0001,
+    "title": "Warsztaty szycia dla seniorów",
+    "category": "AKTYWNOSC_SPOLECZNA",
+    "description": "Integracja i nauka praktycznych umiejętności."
+  },
+  {
+    "id": 12,
+    "lat": 52.2450,
+    "lon": 21.0450,
+    "title": "Festiwal Filmów Krótkich",
+    "category": "KULTURA",
+    "description": "Plenerowe pokazy filmowe z całego świata."
+  },
+  {
+    "id": 13,
+    "lat": 52.2211,
+    "lon": 21.0333,
+    "title": "Turniej siatkówki plażowej",
+    "category": "SPORT",
+    "description": "Otwarte zawody z nagrodami."
+  },
+  {
+    "id": 14,
+    "lat": 52.2188,
+    "lon": 21.0444,
+    "title": "Spotkanie z podróżnikiem",
+    "category": "EDUKACJA",
+    "description": "Opowieści z wypraw w Himalaje."
+  },
+  {
+    "id": 15,
+    "lat": 52.2355,
+    "lon": 21.0155,
+    "title": "Akcja krwiodawstwa",
+    "category": "AKTYWNOSC_SPOLECZNA",
+    "description": "Mobilny punkt poboru krwi."
+  },
+  {
+    "id": 16,
+    "lat": 52.2488,
+    "lon": 21.0111,
+    "title": "Parada Psów",
+    "category": "OTHER",
+    "description": "Wydarzenie dla miłośników czworonogów."
+  },
+  {
+    "id": 17,
+    "lat": 52.2388,
+    "lon": 21.0211,
+    "title": "Warsztaty plenerowe z ceramiki",
+    "category": "KULTURA",
+    "description": "Twórz własne naczynia z gliny."
+  },
+  {
+    "id": 18,
+    "lat": 52.2299,
+    "lon": 21.0299,
+    "title": "Mecz charytatywny",
+    "category": "SPORT",
+    "description": "Dochód przeznaczony na fundację dziecięcą."
+  },
+  {
+    "id": 19,
+    "lat": 52.2122,
+    "lon": 21.0122,
+    "title": "Kurs pierwszej pomocy",
+    "category": "EDUKACJA",
+    "description": "Szkolenie prowadzone przez ratownika."
+  },
+  {
+    "id": 20,
+    "lat": 52.2311,
+    "lon": 21.0199,
+    "title": "Sąsiedzki grill w parku",
+    "category": "AKTYWNOSC_SPOLECZNA",
+    "description": "Integracja mieszkańców dzielnicy."
+  }
+]

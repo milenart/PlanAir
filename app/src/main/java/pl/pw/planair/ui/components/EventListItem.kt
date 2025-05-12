@@ -1,5 +1,6 @@
 package pl.pw.planair.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,11 +13,14 @@ import androidx.compose.ui.unit.dp
 import pl.pw.planair.data.Event
 
 @Composable
-fun EventListItem(event: Event) {
+fun EventListItem(event: Event,
+                  onEventClick: (Event) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clickable { onEventClick(event) },
+
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

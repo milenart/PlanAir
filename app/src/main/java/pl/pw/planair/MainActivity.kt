@@ -1,8 +1,10 @@
 package pl.pw.planair
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
@@ -29,19 +31,27 @@ import androidx.compose.ui.Modifier
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e(
+                "UncaughtException",
+                "Wyjątek na wątku ${thread.name}: ${throwable.message}",
+                throwable
+            )
+        }
         setContent {
-            PlanAirTheme { // Twoj motyw aplikacji
-                // Glowny kontener UI, wypelnia caly ekran
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // ZMIANA TUTAJ: Uzyj swojego AppNavHost
-                    val navController = rememberNavController() // Utworz i zapamietaj kontroler nawigacji
-                    AppNavHost(navController = navController) // <-- Wywolaj swoj komponent NavHost
-                }
+        PlanAirTheme { // Twoj motyw aplikacji
+            // Glowny kontener UI, wypelnia caly ekran
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                // ZMIANA TUTAJ: Uzyj swojego AppNavHost
+                val navController = rememberNavController() // Utworz i zapamietaj kontroler nawigacji
+                AppNavHost(navController = navController) // <-- Wywolaj swoj komponent NavHost
             }
         }
+    }
     }
 }
 

@@ -15,6 +15,7 @@ gson = "2.10.1"
 navigationCompose = "2.7.7"
 lifecycleViewmodelKtx = "2.8.7"
 coroutinesCore = "1.8.0"
+compose-version = "1.6.7"
 
 
 [libraries]
@@ -39,7 +40,8 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 androidx-preference-ktx = { group = "androidx.preference", name = "preference-ktx", version.ref = "preferenceKtx" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
-
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version.ref = "compose-version" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "compose-version" }
 
 
 [plugins]

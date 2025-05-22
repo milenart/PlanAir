@@ -18,20 +18,21 @@ import pl.pw.planair.ui.theme.PlanAirTheme
 import org.osmdroid.config.Configuration
 import pl.pw.planair.data.loadMarkersFromJson
 import pl.pw.planair.ui.map.viewmodel.MapViewModel
-import pl.pw.planair.ui.screen.IntroScreen // Dodaj ten import
-import pl.pw.planair.ui.screen.MainScreenWithMapAndList
+import pl.pw.planair.ui.screens.IntroScreen // Dodaj ten import
+import pl.pw.planair.ui.screens.MainScreenWithMapAndList
 import androidx.navigation.NavHostController // <-- Importuj kontroler nawigacji
 import androidx.navigation.compose.rememberNavController // <-- Importuj funkcje do zapamietywania kontrolera
 import pl.pw.planair.navigation.AppNavHost // <-- Importuj swoj NavHost Composable
 import pl.pw.planair.navigation.AppScreens
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.appcompat.app.AppCompatActivity
 
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        //enableEdgeToEdge()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e(
                 "UncaughtException",

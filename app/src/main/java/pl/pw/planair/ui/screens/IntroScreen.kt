@@ -1,4 +1,4 @@
-package pl.pw.planair.ui.screen
+package pl.pw.planair.ui.screens
 
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState

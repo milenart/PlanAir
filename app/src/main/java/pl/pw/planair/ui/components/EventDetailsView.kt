@@ -1,117 +1,179 @@
+// pl.pw.planair.ui.components/EventDetailsView.kt
+
 package pl.pw.planair.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color // Dodaj import dla Color
+import androidx.compose.ui.graphics.Color
 
 import pl.pw.planair.data.Event
-import pl.pw.planair.data.EventCategory // Upewnij sie, ze masz ten import jesli uzywasz EventCategory
-
-// Import ikon dla ulubionych
-import androidx.compose.material.icons.filled.Favorite // Ikonka serca (wypełniona)
-import androidx.compose.material.icons.filled.FavoriteBorder // Ikonka serca (obramowanie)
-
+import pl.pw.planair.data.EventCategory
+import java.text.SimpleDateFormat // Import dla formatowania daty
+import java.util.Date // Import dla klasy Date
+import java.util.Locale // Import dla Locale
 
 @Composable
 fun EventDetailsView(
     event: Event,
     modifier: Modifier = Modifier,
-    // Dodaj parametry dla lambd przycisków Ulubione i Nawiguj
-    // onNavigateClick: (Event) -> Unit = {}, // Placeholder dla przycisku Nawiguj
-
-    // <-- DODANE PARAMETRY DLA ULUBIONYCH (Z KROKU 5.2)
-    isFavorite: Boolean, // Informacja, czy wydarzenie jest ulubione
-    onFavoriteClick: (Event) -> Unit // Lambda wywoływana po kliknięciu przycisku ulubionych
-
+    isFavorite: Boolean,
+    onFavoriteClick: (Event) -> Unit
 ) {
-    Box(
+    Column(
         modifier = modifier
-            .fillMaxWidth() // Szerokosc ustawia rodzic
-            .padding(horizontal = 16.dp) // Padding horyzontalny dla treści wewnątrz Boxa
+            .fillMaxWidth()
+            .padding(16.dp)
     ) {
-        // Przycisk Wstecz - umieszczony w lewym górnym rogu Boxa
-        // Jego lambda onClick jest pusta, bo obsługa jest w nadrzednym komponencie
-        IconButton(
-            onClick = { /* Przyciskiem wstecz zarzadza rodzic (MapAndListScreen) */ },
-            modifier = Modifier
-                .align(Alignment.TopStart) // Umieść w lewym górnym rogu
-                .padding(4.dp) // Mały padding
+        // Nagłówek z tytułem wydarzenia i przyciskiem ulubionych
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(Icons.Filled.ArrowBack, contentDescription = "Wstecz do listy")
-        }
 
-        // <-- IKONA/PRZYCISK ULUBIONYCH W PRAWYM GÓRNYM ROGU Boxa (Z KROKU 5.2)
-        IconButton(
-            onClick = { onFavoriteClick(event) }, // Wywołaj lambda przekazując wydarzenie
-            modifier = Modifier
-                .align(Alignment.TopEnd) // Umieść w prawym górnym rogu
-                .padding(4.dp) // Mały padding
-        ) {
-            // Wybierz ikonę zależnie od statusu ulubionego (isFavorite)
-            val icon = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder
-            // Ustaw kolor ikony - np. primary dla ulubionych, domyślny dla nie-ulubionych
-            val tint = if (isFavorite) MaterialTheme.colorScheme.primary else LocalContentColor.current // Kolor ikony
-            val contentDescription = if (isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych" // Opis dostępności
-
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tint // Ustaw kolor ikony
-            )
-        }
-
-
-        // Główny kontener dla reszty szczegółów (tytuł, opis itp.)
-        Column(
-            modifier = Modifier
-                .fillMaxSize() // Wypełnia Boxa
-                // Dodaj padding z góry, żeby treść nie nachodziła na przyciski w górnych rogach (Wstecz i Ulubione)
-                .padding(top = 48.dp) // Około 48dp lub więcej, żeby zrobić miejsce na przyciski u góry
-        ) {
-            // Tytuł wydarzenia
+            Spacer(Modifier.width(8.dp))
             Text(
-                text = event.title ?: "Brak tytułu", // Wyświetl tytuł lub placeholder
-                style = MaterialTheme.typography.headlineSmall, // Styl tekstu
-                fontWeight = FontWeight.Bold, // Czcionka pogrubiona
+                text = event.title ?: "Brak tytułu",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
             )
 
-            Spacer(Modifier.height(16.dp)) // Odstęp po tytule
-
-            // Opis wydarzenia
-            Text(
-                text = event.description ?: "Brak opisu.", // Wyświetl opis lub placeholder
-                style = MaterialTheme.typography.bodyMedium // Styl tekstu
-            )
-
-            Spacer(Modifier.height(8.dp)) // Odstęp po opisie
-
-            // Kategoria wydarzenia (opcjonalnie, zależy od Twojej klasy EventCategory)
-            // Upewnij sie, ze 'event.category.name' jest poprawne
-            Text(
-                text = "Kategoria: ${event.category.name}", // Wyświetl nazwę kategorii
-                style = MaterialTheme.typography.bodySmall, // Styl tekstu
-                color = MaterialTheme.colorScheme.onSurfaceVariant // Kolor tekstu
-            )
-
-            // TODO: Dodaj tutaj inne szczegóły wydarzenia (data, czas, miejsce itp.)
-
-            Spacer(Modifier.height(16.dp)) // Odstęp przed przyciskami akcji na dole (TODO)
-
-            // TODO: Tutaj w przyszłości dodasz przycisk Nawiguj
-            /*
-            Button(onClick = {
-                // onNavigateClick(event) // Wywołaj lambda nawigacji
-            }) {
-                Text("Nawiguj")
+            // Przycisk ulubionych (gwiazdka)
+            IconButton(onClick = { onFavoriteClick(event) }) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Usuń z ulubionych" else "Dodaj do ulubionych",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-             */
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Opis wydarzenia
+        Text(
+            text = event.description ?: "Brak opisu.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // Kategoria wydarzenia
+        Text(
+            text = "Kategoria: ${event.category.name}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        // Lokalizacja (rozwiązanie Unresolved reference: name i @Composable error)
+        event.location?.let { loc ->
+            // Wyświetlamy adres, miasto i dzielnicę, jeśli dostępne
+            loc.address?.let { address ->
+                Text(
+                    text = "Adres: $address",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            loc.city?.let { city ->
+                Text(
+                    text = "Miasto: $city",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            loc.district?.let { district ->
+                Text(
+                    text = "Dzielnica: $district",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (loc.address != null || loc.city != null || loc.district != null) {
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+
+        // Ceny i data/czas
+        if (event.price != null || event.date != null || event.start_time != null) {
+            Column {
+                if (event.price != null) {
+                    // Próbujemy parsować cenę na Double, aby formatować walutę
+                    val displayPrice = event.price.toDoubleOrNull()
+                    if (displayPrice != null) {
+                        Text(
+                            text = "Cena: ${String.format("%.2f zł", displayPrice)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        // Jeśli nie udało się sparsować na Double, wyświetl surowy string
+                        Text(
+                            text = "Cena: ${event.price} zł",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (event.date != null) {
+                    // Konwersja daty ze Stringa na Long (timestamp) do formatowania
+                    val parsedDateMillis: Long? = try {
+                        val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+                        dateFormat.parse(event.date)?.time
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (parsedDateMillis != null) {
+                        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                        val formattedDate = dateFormat.format(Date(parsedDateMillis))
+                        Text(
+                            text = "Data: $formattedDate",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "Data: ${event.date}", // Wyświetl surowy String, jeśli nie udało się sparsować
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (event.start_time != null) {
+                    Text(
+                        text = "Godzina: ${event.start_time}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Link do źródła
+        if (event.source_link != null) {
+            Text(
+                text = "Źródło: ${event.source_link}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary // Podświetl link
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
     }
 }

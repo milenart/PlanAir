@@ -50,7 +50,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.osmdroid)
-    implementation(libs.material)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.core)
@@ -65,5 +64,11 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.google.play.services.location)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.google.android.material)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.compose.material3)
+
 
 }

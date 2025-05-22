@@ -21,7 +21,7 @@ import pl.pw.planair.ui.map.viewmodel.MapViewModel
 import pl.pw.planair.ui.screens.FilterScreen
 import pl.pw.planair.ui.screens.IntroScreen
 import pl.pw.planair.ui.screens.MainScreenWithMapAndList
-
+import pl.pw.planair.ui.screens.SplashScreen
 /**
  * Komponent Composable konfigurujący NavHost i definiujący graf nawigacji aplikacji.
  * Przyjmuje kontroler nawigacji i konfiguruje wszystkie ekrany.
@@ -39,8 +39,11 @@ fun AppNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = AppScreens.IntroScreen.route
+        startDestination = AppScreens.SplashScreen.route
     ) {
+        composable(route = AppScreens.SplashScreen.route) {
+            SplashScreen(navController = navController) // Wywołaj swój SplashScreen Composable
+        }
         composable(AppScreens.IntroScreen.route) {
             IntroScreen(
                 onNavigateToMap = { filterCategoryString ->
@@ -92,7 +95,7 @@ fun AppNavHost(
                             @Suppress("UNCHECKED_CAST")
                             return FilterViewModel(
                                 application = applicationContext,
-                                initialFilterState = mapFilterState // Używamy zebranego stanu
+                                initialFilterStateFromNav = mapFilterState // Używamy zebranego stanu
                             ) as T
                         }
                         throw IllegalArgumentException("Unknown ViewModel class")

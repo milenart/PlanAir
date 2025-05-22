@@ -20,7 +20,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.layout.size
 import androidx.core.content.ContextCompat
 
 import pl.pw.planair.R
@@ -30,17 +34,25 @@ import pl.pw.planair.data.FilterLocation
 import pl.pw.planair.data.FilterState
 import pl.pw.planair.data.LocationType
 import pl.pw.planair.data.PriceRange
-import pl.pw.planair.data.loadMarkersFromJson // Upewnij się, że to masz
-
+import pl.pw.planair.data.loadMarkersFromJson
+import pl.pw.planair.data.generateUniqueKey
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
+import java.io.IOException
+
 const val FAVORITES_FILTER_KEY = "FAVORITES_FILTER"
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
+
+
+    private val FAVORITES_FILE_NAME = "user_favorites.json"
 
     // --- STAN (State) ---
     private val _allEvents = MutableStateFlow<List<Event>>(emptyList())
@@ -51,15 +63,22 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedEvent = MutableStateFlow<Event?>(null)
     val selectedEvent: StateFlow<Event?> = _selectedEvent.asStateFlow()
 
+    private val _currentlySelectedEventKey = MutableStateFlow<String?>(null)
+    val currentlySelectedEventKey: StateFlow<String?> = _currentlySelectedEventKey.asStateFlow()
+
     // Stan filtra - wszystkie parametry filtrujące
     private val _currentFilterState = MutableStateFlow(FilterState())
     val currentFilterState: StateFlow<FilterState> = _currentFilterState.asStateFlow()
-    //Log.d("MapViewModel", "Current filter state: $_currentFilterState")
 
     val filterState: StateFlow<FilterState> = _currentFilterState.asStateFlow()
     // Zbiór ulubionych wydarzeń (przechowujemy całe obiekty Event)
-    private val _favoriteEvents = MutableStateFlow<List<Event>>(emptyList())
-    val favoriteEvents: StateFlow<List<Event>> = _favoriteEvents.asStateFlow()
+    private val _favoriteEventIds = MutableStateFlow<Set<String>>(emptySet()) // Przechowuje ID ulubionych
+    val favoriteEventIds: StateFlow<Set<String>> = _favoriteEventIds.asStateFlow()
+
+    private var initialCategoryFromFirstScreen: EventCategory? = null
+
+    // Stan przed zmianą na tryb "tylko ulubione"
+    private var _previousFilterStateBeforeFavoritesMode: FilterState? = null
 
     // Aktualna lokalizacja użytkownika
     private val _userLocation = MutableStateFlow<Location?>(null)
@@ -72,81 +91,128 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(application.applicationContext)
 
+    private val _showNavigationDialog = MutableStateFlow<Event?>(null) // Przechowuje Event lub null
+    val showNavigationDialog: StateFlow<Event?> = _showNavigationDialog.asStateFlow()
 
-    // Przefiltrowana lista wydarzeń - to jest to, co będzie obserwować UI (mapa i lista)
-    // Używamy combine, aby reagować na zmiany we wszystkich strumieniach (allEvents, currentFilterState, favoriteEvents)
+    fun requestNavigation(event: Event) {
+        _showNavigationDialog.value = event
+    }
+
+    fun dismissNavigationDialog() {
+        _showNavigationDialog.value = null
+    }
+
     val filteredEvents: StateFlow<List<Event>> =
-        combine(_allEvents, _currentFilterState, _favoriteEvents) { events, filterState, favoriteEventsList -> // Zmieniona nazwa parametru na favoriteEventsList dla jasności
-            Log.d("MapViewModel", "Applying filters. Current filterState: $filterState, Favorites count: ${favoriteEventsList.size}")
+        combine(
+            _allEvents,
+            _currentFilterState,
+            _favoriteEventIds,
+            _userLocation // Dodajemy userLocation do combine, jeśli filtr lokalizacji od niego zależy
+        ) { events, filterState, favoriteIds, currentUserLocation ->
+            Log.d("MapViewModel", "Applying filters. Current filterState: $filterState, Favorites count: ${favoriteIds.size}")
+
+            if (events.isEmpty()) {
+                Log.d("MapViewModel", "No events in _allEvents, returning empty list.")
+                return@combine emptyList()
+            }
+
             val filtered = events.filter { event ->
-                // 1. Filtr "Tylko Ulubione" (jeśli aktywny, ma pierwszeństwo)
-                val favoriteMatch = if (filterState.showOnlyFavorites) {
-                    favoriteEventsList.contains(event)
-                } else {
-                    true // Jeśli nie filtrujemy tylko po ulubionych, wszystkie przechodzą ten etap
+                val eventKey = event.generateUniqueKey()
+
+                // 1. GŁÓWNY WARUNEK: "TYLKO ULUBIONE"
+                if (filterState.showOnlyFavorites) {
+                    val isFavorite = favoriteIds.contains(eventKey)
+                    if (!isFavorite) Log.d("MapViewModel", "Event '${event.title}' NOT a favorite (showOnlyFavorites mode).")
+                    return@filter isFavorite
                 }
 
-                // 2. Filtr kategorii (stosowany tylko jeśli nie filtrujemy wyłącznie po ulubionych LUB jeśli chcemy ulubione z danej kategorii)
-                // Dla uproszczenia: jeśli showOnlyFavorites jest true, kategoria jest ignorowana.
-                // Jeśli chcesz bardziej złożonej logiki (np. ulubione Z kategorii Sport), trzeba by to dostosować.
-                val categoryMatch = if (filterState.showOnlyFavorites) {
-                    true // Jeśli pokazujemy tylko ulubione, kategoria nie ma już znaczenia na tym etapie
-                } else {
-                    filterState.category == null || event.category == filterState.category
-                }
-                Log.d("MapViewModel", "Event ${event.title} - ${filterState.category} - ${event.category}")
+                // --- PONIŻEJ LOGIKA DLA NORMALNEGO TRYBU (gdy filterState.showOnlyFavorites == false) ---
 
-                // 3. Filtr promienia i lokalizacji
-                val locationMatch = if (filterState.filterLocation.latitude != null && filterState.filterLocation.longitude != null) {
-                    event.location?.coordinates?.coordinates?.let { coords ->
-                        if (coords.size >= 2) { // Dodatkowe zabezpieczenie przed IndexOutOfBounds
-                            val eventLat = coords[1]
-                            val eventLon = coords[0]
-                            val distance = calculateDistance(
-                                filterState.filterLocation.latitude!!, // Pewność, że nie null dzięki warunkowi wyżej
-                                filterState.filterLocation.longitude!!, // Pewność, że nie null
-                                eventLat,
-                                eventLon
-                            )
-                            distance <= filterState.radiusKm
-                        } else false
-                    } ?: false
-                } else {
-                    true
+                // 2. Filtr kategorii
+                val categoryMatch = filterState.category == null || event.category == filterState.category
+                if (!categoryMatch) Log.d("MapViewModel", "Event '${event.title}' FAILED category filter (expected: ${filterState.category}, actual: ${event.category}).")
+
+                // 3. Filtr lokalizacji i promienia
+                val locationMatch = when (filterState.filterLocation.type) {
+                    LocationType.USER_LOCATION -> {
+                        currentUserLocation?.let { userLoc ->
+                            event.location?.coordinates?.coordinates?.let { coords ->
+                                if (coords.size >= 2) {
+                                    val eventLat = coords[1]
+                                    val eventLon = coords[0]
+                                    val distance = calculateDistance(
+                                        userLoc.latitude,
+                                        userLoc.longitude,
+                                        eventLat,
+                                        eventLon
+                                    )
+                                    val radiusKm = filterState.radiusKm
+                                    distance <= radiusKm
+                                } else false
+                            } ?: false
+                        } ?: true // Jeśli lokalizacja użytkownika nie jest dostępna, przepuść (lub false)
+                    }
+                    LocationType.DEFAULT_LOCATION -> {
+                        if (filterState.filterLocation.latitude != null && filterState.filterLocation.longitude != null) {
+                            event.location?.coordinates?.coordinates?.let { coords ->
+                                if (coords.size >= 2) {
+                                    val eventLat = coords[1]
+                                    val eventLon = coords[0]
+                                    val distance = calculateDistance(
+                                        filterState.filterLocation.latitude!!, // !! jest bezpieczne dzięki wcześniejszemu sprawdzeniu
+                                        filterState.filterLocation.longitude!!, // !! jest bezpieczne
+                                        eventLat,
+                                        eventLon
+                                    )
+                                    val radiusKm = filterState.radiusKm
+                                    distance <= radiusKm
+                                } else false
+                            } ?: false
+                        } else {
+                            true // Jeśli DEFAULT_LOCATION nie ma zdefiniowanych współrzędnych w filterState, przepuść
+                        }
+                    }
+                    LocationType.MAP_POINT -> {
+                        if (filterState.filterLocation.latitude != null && filterState.filterLocation.longitude != null) {
+                            event.location?.coordinates?.coordinates?.let { coords ->
+                                if (coords.size >= 2) {
+                                    val eventLat = coords[1]
+                                    val eventLon = coords[0]
+                                    val distance = calculateDistance(
+                                        filterState.filterLocation.latitude!!, // !! jest bezpieczne
+                                        filterState.filterLocation.longitude!!, // !! jest bezpieczne
+                                        eventLat,
+                                        eventLon
+                                    )
+                                    val radiusKm = filterState.radiusKm
+                                    distance <= radiusKm
+                                } else false
+                            } ?: false
+                        } else {
+                            true // Jeśli MAP_POINT nie ma zdefiniowanych współrzędnych w filterState, przepuść
+                        }
+                    }
+                    else -> true // Domyślnie przepuść, jeśli typ lokalizacji nie jest obsługiwany lub nie ma filtra
                 }
+                if (!locationMatch) Log.d("MapViewModel", "Event '${event.title}' FAILED location filter.")
 
                 // 4. Filtr zakresu cen
                 val priceMatch = when (filterState.priceRange) {
-                    PriceRange.ALL -> true // Wszystkie wydarzenia, bez względu na cenę
-                    PriceRange.FREE -> {
-                        // Darmowe: cena to "0", "bezpłatne", "free" lub puste/null
-                        event.price?.toDoubleOrNull() == 0.0 ||
-                                event.price.equals("0", ignoreCase = true) ||
-                                event.price.equals("bezpłatne", ignoreCase = true) ||
-                                event.price.equals("free", ignoreCase = true) ||
-                                event.price.isNullOrEmpty()
-                    }
-                    PriceRange.PAID -> {
-                        // Płatne: cena nie jest darmowa i nie jest pusta/null
-                        !(event.price?.toDoubleOrNull() == 0.0 ||
-                                event.price.equals("0", ignoreCase = true) ||
-                                event.price.equals("bezpłatne", ignoreCase = true) ||
-                                event.price.equals("free", ignoreCase = true) ||
-                                event.price.isNullOrEmpty())
-                    }
+                    PriceRange.ALL -> true
+                    PriceRange.FREE -> event.price.isNullOrEmpty() || event.price.equals("0", ignoreCase = true) || event.price.equals("bezpłatne", ignoreCase = true) || event.price.equals("free", ignoreCase = true) || event.price?.toDoubleOrNull() == 0.0
+                    PriceRange.PAID -> !(event.price.isNullOrEmpty() || event.price.equals("0", ignoreCase = true) || event.price.equals("bezpłatne", ignoreCase = true) || event.price.equals("free", ignoreCase = true) || event.price?.toDoubleOrNull() == 0.0)
                 }
+                if (!priceMatch) Log.d("MapViewModel", "Event '${event.title}' FAILED price filter (expected: ${filterState.priceRange}, actual price: ${event.price}).")
 
                 // 5. Filtr daty
                 val dateMatch = if (filterState.startDate != null || filterState.endDate != null) {
-                    val eventDateString = event.date
-                    if (eventDateString != null) {
+                    event.date?.let { eventDateString ->
                         try {
                             val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-                            dateFormat.isLenient = false // Ścisłe parsowanie daty
+                            dateFormat.isLenient = false
                             val eventDate = dateFormat.parse(eventDateString)
                             val eventTimeMillis = eventDate?.time ?: 0L
 
-                            // Normalizuj daty do początku dnia dla startDate i końca dnia dla endDate
                             val startMillis = filterState.startDate?.let { getStartOfDayMillis(it) } ?: Long.MIN_VALUE
                             val endMillis = filterState.endDate?.let { getEndOfDayMillis(it) } ?: Long.MAX_VALUE
 
@@ -155,14 +221,14 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                             Log.e("MapViewModel", "Błąd parsowania daty dla wydarzenia ${event.title}: $eventDateString, ${e.message}")
                             false
                         }
-                    } else {
-                        false
-                    }
+                    } ?: false
                 } else {
                     true
                 }
-                // Łączenie wszystkich warunków
-                favoriteMatch && categoryMatch && locationMatch && priceMatch && dateMatch
+                if (!dateMatch) Log.d("MapViewModel", "Event '${event.title}' FAILED date filter.")
+
+                // Łączenie wszystkich warunków dla normalnego trybu
+                categoryMatch && locationMatch && priceMatch && dateMatch
             }
             Log.d("MapViewModel", "Filtered events count: ${filtered.size}")
             filtered
@@ -175,12 +241,54 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     init {
         loadEvents(application.applicationContext)
         checkAndFetchInitialLocation()
+        loadFavoriteIds()
+    }
+
+    private fun saveFavoriteIds() {
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>().applicationContext
+                val idsToSave = _favoriteEventIds.value
+                val jsonString = Json.encodeToString(idsToSave)
+                val file = File(context.filesDir, FAVORITES_FILE_NAME)
+                file.writeText(jsonString)
+                Log.d("MapViewModel", "Zapisano ${idsToSave.size} ulubionych ID do pliku.")
+            } catch (e: Exception) {  // Złap bardziej szczegółowe wyjątki
+                Log.e("MapViewModel", "Błąd podczas zapisywania ulubionych ID do JSON: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun loadFavoriteIds() {
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>().applicationContext
+                val file = File(context.filesDir, FAVORITES_FILE_NAME)
+                if (file.exists()) {
+                    val jsonString = file.readText()
+                    if (jsonString.isNotBlank()) {
+                        val ids = Json.decodeFromString<Set<String>>(jsonString)
+                        _favoriteEventIds.value = ids
+                        Log.d("MapViewModel", "Załadowano ${ids.size} ulubionych ID z pliku.")
+                    } else {
+                        _favoriteEventIds.value = emptySet()
+                        Log.d("MapViewModel", "Plik ulubionych jest pusty.")
+                    }
+                } else {
+                    _favoriteEventIds.value = emptySet()
+                    Log.d("MapViewModel", "Plik ulubionych nie istnieje. Inicjalizuję pusty zbiór.")
+                }
+            } catch (e: Exception) { // Złap bardziej szczegółowe wyjątki, jeśli to konieczne
+                Log.e("MapViewModel", "Błąd podczas ładowania ulubionych ID z JSON: ${e.message}", e)
+                _favoriteEventIds.value = emptySet() // W razie błędu, zacznij z pustym zbiorem
+            }
+        }
     }
 
     private fun loadEvents(context: Context) {
         viewModelScope.launch {
             try {
-                val events = loadMarkersFromJson(context, R.raw.events_2)
+                val events = loadMarkersFromJson(context, R.raw.wydarzenia)
                 _allEvents.value = events
                 Log.d("MapViewModel", "Loaded ${events.size} events.")
             } catch (e: Exception) {
@@ -200,6 +308,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 val category = filterString?.let {
                     try { EventCategory.valueOf(it.uppercase(Locale.ROOT)) } catch (e: IllegalArgumentException) { null }
                 }
+                initialCategoryFromFirstScreen = category
                 // Jeśli przełączamy na zwykły filtr kategorii, wyłącz filtr ulubionych
                 current.copy(
                     category = category,
@@ -213,9 +322,24 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun applyFilter(filterState: FilterState) {
         // Tutaj po prostu przyjmujemy stan z FilterScreen, który powinien już mieć poprawnie ustawione showOnlyFavorites
         _currentFilterState.value = filterState
+        _previousFilterStateBeforeFavoritesMode = null
         Log.d("MapViewModel", "Applied full filter state: $filterState")
         clearSelectedEvent()
     }
+
+    fun prepareForFilterScreenNavigation() {
+        // Jeśli jesteśmy w trybie ulubionych, wyłącz go i przywróć poprzedni stan.
+        // Jeśli nie, po prostu upewnij się, że _previousFilterStateBeforeFavoritesMode jest czysty.
+        if (_currentFilterState.value.showOnlyFavorites) {
+            _currentFilterState.update {
+                _previousFilterStateBeforeFavoritesMode?.copy(showOnlyFavorites = false)
+                    ?: it.copy(showOnlyFavorites = false)
+            }
+        }
+        _previousFilterStateBeforeFavoritesMode = null
+        Log.d("MapViewModel", "Prepared for filter screen navigation. Current filters: ${_currentFilterState.value}")
+    }
+
     private fun getStartOfDayMillis(timestamp: Long): Long {
         val calendar = Calendar.getInstance().apply {
             timeInMillis = timestamp
@@ -237,30 +361,111 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
         return calendar.timeInMillis
     }
+
     // Funkcja do ustawiania wybranego wydarzenia (wywoływana z listy lub markera)
     fun selectEventForDetails(event: Event) {
         _selectedEvent.value = event
+        _currentlySelectedEventKey.value = event.generateUniqueKey()
     }
 
     // Funkcja do czyszczenia wybranego wydarzenia (wywoływana przyciskiem wstecz)
     fun clearSelectedEvent() {
         _selectedEvent.value = null
-        // Logika ruchu kamery mapy (np. powrót do widoku listy) jest w komponencie Composable
+        _currentlySelectedEventKey.value = null}
+
+    fun toggleFavorite(event: Event) {
+        val eventKey = event.generateUniqueKey() // Używamy funkcji rozszerzającej
+
+        _favoriteEventIds.update { currentFavoriteIds ->
+            val newFavoriteIds = currentFavoriteIds.toMutableSet()
+            if (newFavoriteIds.contains(eventKey)) {
+                newFavoriteIds.remove(eventKey)
+                Log.d("MapViewModel", "Usunięto z ulubionych klucz: $eventKey. Nowa liczba ulubionych: ${newFavoriteIds.size}")
+            } else {
+                newFavoriteIds.add(eventKey)
+                Log.d("MapViewModel", "Dodano do ulubionych klucz: $eventKey. Nowa liczba ulubionych: ${newFavoriteIds.size}")
+            }
+            newFavoriteIds
+        }
+        saveFavoriteIds()
     }
 
-    // <-- DODAJ TĘ FUNKCJĘ DO PRZEŁĄCZANIA STATUSU ULUBIONEGO
-    fun toggleFavorite(event: Event) {
-        val currentFavorites = _favoriteEvents.value.toMutableList()
-        if (currentFavorites.contains(event)) {
-            // Jeśli wydarzenie jest na liście ulubionych, usuń je
-            currentFavorites.remove(event)
-            Log.d("MapViewModel", "Usunięto z ulubionych: ${event.title}. Nowa liczba ulubionych: ${currentFavorites.size}")
+    /**
+     * Inicjuje nawigację do lokalizacji podanego wydarzenia za pomocą Google Maps.
+     *
+     * @param event Wydarzenie, do którego lokalizacji ma zostać uruchomiona nawigacja.
+     */
+    fun navigateToEventLocation(event: Event) {
+        val context = getApplication<Application>().applicationContext
+        val coordinates = event.location?.coordinates?.coordinates
+        // Po potwierdzeniu dialogu, czyścimy stan dialogu
+        _showNavigationDialog.value = null // lub dismissNavigationDialog()
+
+        if (coordinates != null && coordinates.size >= 2) {
+            val latitude = coordinates[1]
+            val longitude = coordinates[0]
+            // Opcjonalnie: użyj nazwy wydarzenia lub lokalizacji jako etykiety
+            val locationLabel = event.location?.address ?: event.title ?: "Lokalizacja wydarzenia"
+            val encodedLabel = Uri.encode(locationLabel) // Ważne, aby zakodować specjalne znaki
+
+            // ZMIANA URI: "geo:latitude,longitude?q=latitude,longitude(Label)"
+            // To URI pokazuje pinezkę na mapie z opcjonalną etykietą.
+            // Użytkownik sam musi kliknąć "Wyznacz trasę".
+            val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude($encodedLabel)")
+            // Alternatywnie, jeśli nie chcesz etykiety, a tylko pinezkę:
+            // val gmmIntentUri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude")
+            // Lub jeszcze prościej, samo "geo:latitude,longitude" powinno wycentrować mapę:
+            // val gmmIntentUri = Uri.parse("geo:$latitude,$longitude")
+
+
+            val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+            mapIntent.setPackage("com.google.android.apps.maps")
+            mapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+            if (mapIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(mapIntent)
+                Log.d("MapViewModel", "Pokazywanie lokalizacji w Google Maps: $latitude,$longitude dla: ${event.title}")
+            } else {
+                Toast.makeText(context, "Aplikacja Google Maps nie jest zainstalowana.", Toast.LENGTH_LONG).show()
+                Log.w("MapViewModel", "Aplikacja Google Maps nie jest zainstalowana dla: ${event.title}")
+                // Fallback do przeglądarki (jak poprzednio)
+                try {
+                    val webIntentUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=$latitude,$longitude")
+                    // ... reszta fallbacku ...
+                } catch (e: Exception) { /* ... */ }
+            }
         } else {
-            // Jeśli wydarzenia nie ma na liście ulubionych, dodaj je
-            currentFavorites.add(event)
-            Log.d("MapViewModel", "Dodano do ulubionych: ${event.title}. Nowa liczba ulubionych: ${currentFavorites.size}")
+            Toast.makeText(context, "Brak dokładnych współrzędnych dla wydarzenia: ${event.title}", Toast.LENGTH_SHORT).show()
+            Log.w("MapViewModel", "Próba pokazania lokalizacji dla wydarzenia bez współrzędnych: ${event.title}")
         }
-        _favoriteEvents.value = currentFavorites.toList() // Ustaw nową listę (immutable)
+    }
+
+    // W klasie MapViewModel
+    fun toggleShowOnlyFavorites() {
+        _currentFilterState.update { currentState ->
+            val newShowOnlyFavoritesState = !currentState.showOnlyFavorites
+
+            if (newShowOnlyFavoritesState) {
+                _previousFilterStateBeforeFavoritesMode = currentState.copy()
+                // Włączamy tryb "tylko ulubione" - resetujemy inne filtry
+                currentState.copy(
+                    showOnlyFavorites = true,
+                    category = null,
+                    startDate = null,
+                    endDate = null,
+                    priceRange = PriceRange.ALL, // Załóżmy, że masz PriceRange.ALL
+                    //filterLocation = FilterLocation(type = LocationType.EVERYWHERE) // Resetuj lokalizację
+                    // Dodaj resetowanie innych pól FilterState, jeśli je masz
+                )
+            } else {
+                // Wyłączamy tryb "tylko ulubione" - przywracamy możliwość działania innych filtrów
+                // (ale nie przywracamy ich poprzednich wartości, użytkownik ustawi je od nowa, jeśli chce)
+                _previousFilterStateBeforeFavoritesMode?.copy(
+                    showOnlyFavorites = false // Upewnij się, że ten tryb jest wyłączony
+                ) ?: currentState.copy(showOnlyFavorites = false)
+            }
+        }
+        Log.d("MapViewModel", "Toggled showOnlyFavorites. New state: ${_currentFilterState.value}")
     }
 
     fun updateLocationPermission(granted: Boolean) {

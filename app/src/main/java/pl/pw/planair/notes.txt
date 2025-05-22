@@ -1,0 +1,6 @@
+do zrobienia nam zostało: logika ulubionych wydarzen. zastanowic sie trzeba czy nie zaznaczac jakos markera ktory aktualnie jest wysrodkowany jak uzytkownik
+wybierze dane wydarzenie (tutaj chodzi o problem gdy jest duzo wydarzen. moze dodac logike zeby tylko to wydarzenie sie wyswietlalo...).
+Dodatkowo trzeba naprawic resetowanie ustawien filtracji, bo gdy sie resetuje to gubi sie filtr kategorii wybranej w pierwszym ekranie.
+Trzeba tez zmienic, centrowanie mapy - ma centrowac na domyslna lokalizacje a nie na lokalizacje uzytkownika. Usunąc możliwość schowania listy
+oraz zmniejszyc jej wielkosc na schowaniu. Dodac 5 i 6 możliwość w pierwszym ekranie - dodac wszystkie kategorie oraz dodać ulubione. Nie wiem czy
+to duzo zmienia ale ulubione nie muszą mieć logiki filtracji.

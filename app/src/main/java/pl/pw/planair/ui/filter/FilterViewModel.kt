@@ -28,12 +28,16 @@ import java.util.Locale
 
 class FilterViewModel(
     application: Application,
-    // Konstruktor przyjmuje initialFilterState
-    initialFilterState: FilterState = FilterState()
+    initialFilterStateFromNav: FilterState
 ) : AndroidViewModel(application) {
 
-    private val _filterState = MutableStateFlow(initialFilterState)
+    private val _filterState = MutableStateFlow(initialFilterStateFromNav)
     val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
+
+    // Wartości potrzebne do poprawnego działania funkcji resetFilters
+    private val categoryForReset: EventCategory?
+    private val showOnlyFavoritesForReset: Boolean
+    private val filterLocationForReset: FilterLocation
 
     private val _locationPermissionGranted = MutableStateFlow(false)
     val locationPermissionGranted: StateFlow<Boolean> = _locationPermissionGranted.asStateFlow()
@@ -42,16 +46,13 @@ class FilterViewModel(
         LocationServices.getFusedLocationProviderClient(application.applicationContext)
 
     init {
-        // Przy uruchomieniu, sprawdzamy, czy aplikacja ma uprawnienia do lokalizacji
-        // i aktualizujemy _locationPermissionGranted.
-        // Jeśli initialFilterState ma typ USER_LOCATION, spróbujemy ją pobrać.
-        _locationPermissionGranted.value = checkLocationPermission(application.applicationContext)
-        if (_filterState.value.filterLocation.type == LocationType.USER_LOCATION && _locationPermissionGranted.value) {
-            requestUserLocation()
-        } else if (_filterState.value.filterLocation.type == LocationType.DEFAULT_LOCATION && _filterState.value.filterLocation.latitude == null) {
-            // Upewniamy się, że domyślna lokalizacja ma współrzędne, jeśli jest typ DEFAULT_LOCATION
-            useDefaultLocation()
-        }
+        // Zapisujemy wartości z initialFilterStateFromNav, które będą użyte przy resecie
+        categoryForReset = initialFilterStateFromNav.category
+        showOnlyFavoritesForReset = initialFilterStateFromNav.showOnlyFavorites
+        filterLocationForReset = initialFilterStateFromNav.filterLocation
+        // radiusForReset = initialFilterStateFromNav.radiusKm // Jeśli chcesz też to zapamiętać
+
+        Log.d("FilterViewModel", "Initialized with filter from NavHost: $initialFilterStateFromNav")
     }
 
     fun updateCategory(category: EventCategory?) {
@@ -140,12 +141,30 @@ class FilterViewModel(
     }
 
     fun resetFilters() {
-        _filterState.value = FilterState() // Resetuje do domyślnego stanu z FilterData.kt
-        _locationPermissionGranted.value = false // Resetujemy stan uprawnień też
-        Log.d("FilterViewModel", "Filtry zresetowane do domyślnego stanu.")
-        // Jeśli domyślna lokalizacja FilterState() to USER_LOCATION, a nie DEFAULT_LOCATION,
-        // i nie ma uprawnień, może to wymagać dodatkowego resetu do DEFAULT_LOCATION.
-        // Ale obecne FilterState() ma domyślnie DEFAULT_LOCATION, więc jest OK.
+        _filterState.update {
+            // Resetuj do wartości domyślnych, ALE zachowaj początkową kategorię/ulubione
+            FilterState(
+                category = categoryForReset,
+                showOnlyFavorites = showOnlyFavoritesForReset,
+                filterLocation = filterLocationForReset,
+                radiusKm = FilterState().radiusKm, // Domyślny promień
+                priceRange = FilterState().priceRange, // Domyślny zakres cen
+                startDate = null, // Domyślnie brak daty
+                endDate = null
+            )
+        }
+        // _locationPermissionGranted.value = false // Czy na pewno chcemy resetować stan uprawnień?
+        // Raczej nie, bo uprawnienia są stanem aplikacji, a nie filtra.
+        // Chyba że reset filtrów ma też oznaczać "zapomnij o mojej lokalizacji".
+        // Na razie zostawmy to bez zmian.
+        Log.d("FilterViewModel", "Filtry zresetowane. Nowy stan: ${_filterState.value}")
+        // Jeśli po resecie chcemy od razu spróbować pobrać lokalizację użytkownika,
+        // jeśli typ lokalizacji to USER_LOCATION i mamy uprawnienia:
+        if (_filterState.value.filterLocation.type == LocationType.USER_LOCATION && locationPermissionGranted.value) {
+            requestUserLocation()
+        } else if (_filterState.value.filterLocation.type == LocationType.DEFAULT_LOCATION && _filterState.value.filterLocation.latitude == null) {
+            useDefaultLocation()
+        }
     }
 
     // Funkcja do filtrowania wydarzeń, dostosowana do Twojego EventInfo.kt

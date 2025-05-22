@@ -6,14 +6,15 @@ package pl.pw.planair.navigation
  */
 sealed class AppScreens(val route: String) {
 
-    // Obiekt reprezentujący trasę do Ekranu Powitalnego
+    // NOWY OBIEKT: Reprezentuje trasę do Twojego własnego ekranu powitalnego (tego z logo i opóźnieniem)
+    object SplashScreen : AppScreens("splash_screen") // <--- DODANY EKRAN
+
+    // Obiekt reprezentujący trasę do Ekranu Powitalnego (tego z wyborem kategorii)
     object IntroScreen : AppScreens("intro_screen")
 
     // Obiekt reprezentujący trasę do Ekranu Mapy i Listy.
-    // Usunięto argument filtra, bo MapViewModel będzie nim zarządzał.
-    object MapScreen : AppScreens("map_screen") {
-        // Nie ma już FILTER_ARG ani createRoute(filter: String?) tutaj
-    }
+    object MapScreen : AppScreens("map_screen")
+    // Nie ma już FILTER_ARG ani createRoute(filter: String?) tutaj, bo to było w MapScreen, a teraz jest w FilterScreen
 
     // Nowy obiekt dla ekranu filtra
     object FilterScreen : AppScreens("filter_screen") {
@@ -21,9 +22,12 @@ sealed class AppScreens(val route: String) {
 
         fun createRoute(initialCategory: String?): String {
             return if (initialCategory == null) {
-                FilterScreen.route // "filter_screen"
+                // Jeśli nie ma initialCategory, nawigujemy do samej ścieżki filter_screen
+                // W NavHost argument będzie wtedy null (dzięki nullable = true, defaultValue = null)
+                FilterScreen.route
             } else {
-                "${FilterScreen.route}/$initialCategory" // "filter_screen/SPORT"
+                // Jeśli jest initialCategory, dodajemy ją do ścieżki
+                "${FilterScreen.route}/$initialCategory"
             }
         }
     }

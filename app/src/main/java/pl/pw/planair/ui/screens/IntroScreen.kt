@@ -31,6 +31,7 @@ import pl.pw.planair.data.IntroButtonData
 import pl.pw.planair.ui.components.EntryButtons
 import pl.pw.planair.ui.components.EntryButtonsIndicator
 import kotlin.math.abs
+import androidx.compose.ui.graphics.Color
 import pl.pw.planair.R
 
 @Composable
@@ -39,10 +40,10 @@ fun IntroScreen(
 ) {
     val buttonItems = remember {
         listOf(
-            IntroButtonData("Sport", "SPORT", R.drawable.sport_zdj),
-            IntroButtonData("Kultura", "KULTURA", R.drawable.rozrywka_zdj),
-            IntroButtonData("Edukacja", "EDUKACJA", R.drawable.edukacja_zdj),
-            IntroButtonData("Aktywność Społeczna", "AKTYWNOSC_SPOLECZNA", R.drawable.spoloczne_zdj)
+            IntroButtonData("Sport", "SPORT", R.drawable.sport_ekran),
+            IntroButtonData("Kultura i rozrywka", "KULTURA", R.drawable.rozrywka_ekran),
+            IntroButtonData("Edukacja", "EDUKACJA", R.drawable.edukacja_ekran),
+            IntroButtonData("Spotkania i integracje", "AKTYWNOSC_SPOLECZNA", R.drawable.spoleczne_ekran)
         )
     }
 
@@ -61,7 +62,7 @@ fun IntroScreen(
     // ALE - jeśli chcemy też odstęp między elementami, to musimy go dodać gdzie indziej (np. w EntryButtons padding)
     val horizontalPadding = (screenWidth - itemWidth) / 2
 
-    val itemHeight = (configuration.screenHeightDp * 0.6f).dp
+    val itemHeight = (configuration.screenHeightDp * 0.7f).dp
     Log.d("IntroScreen", "itemWidth: $itemWidth, itemHeight: $itemHeight, horizontalPadding: $horizontalPadding")
 
     val lazyListState = rememberLazyListState()
@@ -77,6 +78,15 @@ fun IntroScreen(
                     .minByOrNull { item -> abs(item.offset + item.size / 2 - viewportCenter) }
                     ?.index ?: 0
             }
+        }
+    }
+    fun getCategoryColor(category: String?): Color {
+        return when (category) {
+            "KULTURA" -> Color(0xFF732BC0) // Kultura i rozrywka – fiolet
+            "EDUKACJA" -> Color(0xFF2CB7C8) // Edukacja – turkus
+            "AKTYWNOSC_SPOLECZNA" -> Color(0xFFC76600) // Społeczne – pomarańczowy
+            "SPORT" -> Color(0xFF00720A) // Sport – zielony
+            else -> Color.Gray // domyślny
         }
     }
 
@@ -109,10 +119,10 @@ fun IntroScreen(
                     itemHeight = itemHeight,
                     isCentered = (currentIndex == index),
                     scale = scale,
-                    // Dodaj prawy padding do każdego elementu, z wyjątkiem ostatniego,
-                    // aby stworzyć odstęp między boxami.
-                    // Możesz to zrobić tak:
-                    modifier = if (index < buttonItems.size - 1) Modifier.padding(end = 16.dp) else Modifier // <-- DODANE
+                    modifier = if (index < buttonItems.size - 1) Modifier.padding(end = 16.dp) else Modifier,
+                    category = itemData.filterCategory,
+                    color = getCategoryColor(itemData.filterCategory),
+
                 )
             }
         }

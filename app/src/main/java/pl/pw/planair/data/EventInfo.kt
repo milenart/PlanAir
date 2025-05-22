@@ -40,7 +40,7 @@ data class Event(
     // Dodałem to pole: Jeśli chcesz filtrować po ulubionych (showOnlyFavorites w FilterState),
     // Twoja klasa Event MUSI mieć pole isFavorite.
     // Musisz również upewnić się, że to pole jest ustawiane (np. z bazy danych ulubionych).
-    val isFavorite: Boolean = false // <-- WAŻNE: Dodaj to pole!
+    val isFavorite: Boolean = false
 )
 
 fun String.capitalizeWords(): String = split(" ").joinToString(" ") { word ->
@@ -55,4 +55,14 @@ fun EventCategory.getDisplayName(): String {
         EventCategory.AKTYWNOSC_SPOLECZNA -> "Aktywność Społeczna"
         EventCategory.OTHER -> "Inne" // Lub "Wszystkie", jeśli OTHER ma takie znaczenie w filtrach
     }
+}
+
+// Funkcja rozszerzająca do generowania unikalnego klucza dla Event
+fun Event.generateUniqueKey(): String {
+    // Używamy pól, które najprawdopodobniej zapewnią unikalność.
+    // Upewnij się, że wartości null są obsługiwane, np. przez zastąpienie ich pustym stringiem lub stałą.
+    val titlePart = title ?: "no_title"
+    val datePart = date ?: "no_date"
+    val startTimePart = start_time ?: "no_start_time" // Dodajemy czas rozpoczęcia dla większej unikalności
+    return "${titlePart}_${datePart}_${startTimePart}"
 }

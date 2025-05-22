@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -69,6 +70,8 @@ dependencies {
     implementation(libs.google.android.material)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.compose.material3)
-
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    implementation("androidx.compose.material:material-icons-extended:<version>")
 
 }
